@@ -31,12 +31,14 @@ public class Receiver extends Thread {
 
 		while(in != null) {
 			try {
-				System.out.println("Thread Receive : "+ URLDecoder.decode(in.readLine(), "UTF-8"));
+				
+				//System.out.println(URLDecoder.decode(in.readLine(), "UTF-8"));
+				//System.out.println("Thread Receive : "+ URLDecoder.decode(in.readLine(), "UTF-8"));
 			}
-			catch(SocketException ne) {
-				System.out.println("SocketException");
-				break;
-			}
+			//catch(SocketException ne) {
+				//System.out.println("SocketException");
+				//break;
+			//}
 			catch (Exception e) {
 				System.out.println("예외>Receiver>run1:"+ e);
 			}

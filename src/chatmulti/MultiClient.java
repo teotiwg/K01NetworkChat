@@ -27,7 +27,7 @@ public class MultiClient {
 				ServerIP = args[0];
 			}
 			Socket socket = new Socket(ServerIP, 9999);
-			System.out.println("서버와 연결되었습니다...");
+			System.out.println("서버와 연결되었습니다.");
 
 			//서버가 Echo해준 메세지를 받기위한 리시버 쓰레드 객체 생성
 			Thread receiver = new Receiver(socket);
