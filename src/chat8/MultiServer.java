@@ -1,4 +1,4 @@
-package chat7;
+package chat8;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -18,6 +19,7 @@ public class MultiServer {
 	
 	//클라이언트 정보저장을 위한 Map 컬렉션 생성	
 	Map<String, PrintWriter> clientMap;
+	HashSet<String> listBlack;
 
 	//생성자
 	public MultiServer() {
@@ -25,6 +27,7 @@ public class MultiServer {
 		clientMap = new HashMap<String, PrintWriter>();
 		//HashMap 동기화설정. 쓰레드가 사용자정보에 동시에 접근하는것을 차단함
 		Collections.synchronizedMap(clientMap);
+		listBlack = new HashSet<String>();
 	}
 	
 	//채팅 서버 초기화
@@ -33,12 +36,9 @@ public class MultiServer {
 			//서버 소켓 오픈
 			serverSocket = new ServerSocket(9999);
 			System.out.println("서버가 시작되었습니다.");
-			
 			/*
-			1명의 클라이언트가 접속할때마다 접속을 허용(Accept)해주고
-			동시에 MultiServerT 쓰레드를 생성한다. 
-			해당 쓰레드는 1명의 클라이언트가 전송하는 메세지를 읽어서 Echo
-			해주는 역할을 담당한다. 
+			1명의 클라이언트가 접속할때마다 접속을 허용(Accept)해주고 동시에 MultiServerT 쓰레드 생성. 
+			해당 쓰레드는 1명의 클라이언트가 전송하는 메세지를 읽어서 Echo해주는 역할 담당. 
 			 */
 			while(true) {
 				//클라이언트의 접속 허가
@@ -68,14 +68,31 @@ public class MultiServer {
 		}
 	}
 	/*
-	chat4까지는 init()이 static이었으나, chat5부터는 일반적인
-	멤버메소드를 변경된다. 따라서 객체를 생성후 호출하는 방식으로 변경된다. 
+	chat4까지는 init()이 static이었으나, chat5부터는 일반적인 멤버메소드로 변경된다. 
+	따라서 객체를 생성후 호출하는 방식으로 변경된다. 
 	 */
 	public static void main(String[] args) {
 		MultiServer ms = new MultiServer();
 		ms.init();
 	}
 		
+	public void black(String name) {
+		
+		listBlack.add("www");
+		/*
+		Iterator<String> bl = clientMap.keySet().iterator();
+		
+		while(bl.hasNext()) {
+			String black = bl.next();
+			String temp = black;
+			if(temp.equals(name)){
+				//clientMap.remove(black);
+				return true;
+			}
+		}
+		return false;
+		*/
+	}
 	
 	//접속된 모든 클라이언트 측으로 서버의 메세지를 Echo해주는 역할 담당
 	public void sendAllMsg(String name, String msg, String flag)
@@ -89,8 +106,8 @@ public class MultiServer {
 				// 컬렉션의 key는 클라이언트의 대화명
 				String clientName = it.next();
 				//각 클라이언트의 PrintWriter객체를 얻어온다.
-				PrintWriter it_out = 
-						(PrintWriter) clientMap.get(clientName);
+				PrintWriter it_out = (PrintWriter)clientMap.get(clientName);
+				
 				if(flag.equals("One")) {
 					// flag가 One이면 해당 클라이언트 한명에게만 전송(귓속말)
 					if(name.equals(clientName)) {
@@ -100,10 +117,7 @@ public class MultiServer {
 				}
 				else {
 					// 그 외엔 모든 클라이언트에게 전송
-					/*
-				클라이언트에게 메세지를 전달할때 매개변수로 name이 
-				있는경우와 없는경우를 구분해서 전달하게 된다. 
-					 */
+					// 클라이언트에게 메세지를 전달할때 매개변수로 name이 있는 경우와 없는 경우를 구분해서 전달하게 된다. 
 					if(name.equals("")) {
 						//입장, 퇴장에서 사용되는 부분
 						it_out.println(msg);
@@ -121,19 +135,16 @@ public class MultiServer {
 	}
 	/*
 	내부클래스
-		: init()에 기술되었던 스트림을 생성후 메세지를 읽기/쓰기 하던
-		부분이 해당 내부클래스로 이동되었다.
+		: init()에 기술되었던 스트림을 생성후 메세지를 읽기/쓰기 하던 부분이 해당 내부클래스로 이동됌.
 	 */
 	class MultiServerT extends Thread {
-
 		//멤버변수
 		Socket socket;
 		PrintWriter out = null;
 		BufferedReader in = null;
 		/*
 		내부클래스의 생성자
-			: 1명의 클라이언트가 접속할때 생성했던 Socket객체를 
-			매개변수로 받아 이를 기반으로 입출력 스트림을 생성한다. 
+			: 1명의 클라이언트가 접속할때 생성했던 Socket객체를 매개변수로 받아 이를 기반으로 입출력 스트림을 생성한다. 
 		 */
 		public MultiServerT(Socket socket) {
 			this.socket = socket;
@@ -145,55 +156,67 @@ public class MultiServer {
 				System.out.println("예외:"+ e);
 			}
 		}
-
 		/*
-		쓰레드로 동작할 run()에서는 클라이언트의 접속자명과
-		메세지를 지속적으로 읽어 Echo해주는 역할을 한다. 
+		쓰레드로 동작할 run()에서는 클라이언트의 접속자명과 메세지를 지속적으로 읽어 Echo해주는 역할. 
 		 */
 		@Override
 		public void run() {
 			String name = "";
 			String s = "";
 			try {
-				/*
-				클라이언트가 보내는 최초메세지는 대화명이므로 
-				접속에 대한 부분을 출력하고, Echo한다. 
-				 */
+				// 클라이언트가 보내는 최초메세지는 대화명이므로 접속에 대한 부분을 출력하고, Echo한다. 
 				//클라이언트의 이름을 읽어온다.
 				name = in.readLine();
-				//방금 접속한 클라이언트를 제외한 나머지에게 입장을 알린다.
-				sendAllMsg("", name + "님이 입장하셨습니다.", "All");
-				//현재 접속한 클라이언트를 HashMap에 저장한다. 
-				clientMap.put(name, out);
 				
-				//접속자의 이름을 서버의 콘솔에 띄워주고						
-				System.out.println(name +" 접속");
-				//HashMap에 저장된 객체의 수로 현재 접속자를 파악할수 있다.
-				System.out.println("현재 접속자 수는 "+ clientMap.size()
-					+"명 입니다.");
-				
-				
-				//입력한 메세지는 모든 클라이언트에게 Echo된다. 
-				while (in!=null) {
-					s = in.readLine();
-					if ( s == null )
-						break;
-					//서버의 콘솔에 출력되고...
-					System.out.println(name + " >> " + s);
+				if(clientMap.containsKey(name) == true) {
+					out.println("Change the name.");
+					//clientMap.remove(name);
+					//currentThread().remove();
+					return;
+					//currentThread().interrupt();
+					//out.println(currentThread());
+					//out.close();
+					//in.close();
+					//clientMap.remove(name);
+					//Thread.currentThread().getName();
+					//.interrupt();
+				} /*
+				else if(black(name) == true) {
+					System.out.println(name + "님을 강퇴했습니다.");
+					clientMap.remove(name);
+					in.close();
+				} */
+				else {
+					//방금 접속한 클라이언트를 제외한 나머지에게 입장을 알린다.
+					sendAllMsg("", name + "님이 입장하셨습니다.", "All");
+					//현재 접속한 클라이언트를 HashMap에 저장한다. 
+					clientMap.put(name, out);
+					//접속자의 이름을 서버의 콘솔에 띄워주고						
+					System.out.println(name +" 접속");
+					//HashMap에 저장된 객체의 수로 현재 접속자를 파악할 수 있다.
+					System.out.println("현재 접속자 수는 "+ clientMap.size() + "명 입니다.");
 					
-					//클라이언트 측으로 전송한다. 
-					if(s.charAt(0) == '/') {
-						String[] strArr = s.split(" ");
-						String msgContent = "";
-						for(int i=2; i<strArr.length; i++) {
-							msgContent += strArr[i] + " ";
+					//입력한 메세지는 모든 클라이언트에게 Echo된다. 
+					while (in!=null) {
+						s = in.readLine();
+						if ( s == null )
+							break;
+						//서버의 콘솔에 출력되고...
+						System.out.println(name + " >> " + s);
+						//클라이언트 측으로 전송한다. 
+						if(s.charAt(0) == '/') {
+							String[] strArr = s.split(" ");
+							String msgContent = "";
+							for(int i=2; i<strArr.length; i++) {
+								msgContent += strArr[i] + " ";
+							}
+							if(strArr[0].equals("/to")){
+								sendAllMsg(strArr[1], msgContent, "One");
+							}
 						}
-						if(strArr[0].equals("/to")){
-							sendAllMsg(strArr[1], msgContent, "One");
+						else {
+							sendAllMsg(name, s, "All");
 						}
-					}
-					else {
-						sendAllMsg(name, s, "All");
 					}
 				}
 			}
@@ -202,9 +225,8 @@ public class MultiServer {
 			}
 			finally {				
 				/*
-				클라이언트가 접속을 종료하면 Socket예외가 발생하게 되어
-				finally절로 진입하게 된다. 이때 "대화명"을 통해 정보를 
-				삭제한다. 
+				클라이언트가 접속을 종료하면 Socket예외가 발생하게 되어 finally절로 진입하게 된다. 
+				이때 "대화명"을 통해 정보를 삭제한다. 
 				 */
 				clientMap.remove(name);
 				sendAllMsg("", name + "님이 퇴장하셨습니다.", "All");

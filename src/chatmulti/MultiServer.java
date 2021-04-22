@@ -1,10 +1,12 @@
-package chat7;
+package chatmulti;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,7 +47,7 @@ public class MultiServer {
 				socket = serverSocket.accept();
 				System.out.println(
 					socket.getInetAddress()+"(클라이언트)의 "
-					+socket.getPort()+" 포트를통해 "
+					+socket.getPort()+" 포트를 통해 "
 					+socket.getLocalAddress()+"(서버)의"
 					+socket.getLocalPort()+" 포트로 연결됨");
 				
@@ -76,7 +78,6 @@ public class MultiServer {
 		ms.init();
 	}
 		
-	
 	//접속된 모든 클라이언트 측으로 서버의 메세지를 Echo해주는 역할 담당
 	public void sendAllMsg(String name, String msg, String flag)
 	{
@@ -90,39 +91,39 @@ public class MultiServer {
 				String clientName = it.next();
 				//각 클라이언트의 PrintWriter객체를 얻어온다.
 				PrintWriter it_out = 
+						//(PrintWriter) clientMap.get(it.next());
 						(PrintWriter) clientMap.get(clientName);
+				
 				if(flag.equals("One")) {
 					// flag가 One이면 해당 클라이언트 한명에게만 전송(귓속말)
 					if(name.equals(clientName)) {
 						// 컬렉션에 저장된 접속자명과 일치하는 경우에만 메시지를 전송
-						it_out.println("[귓속말]" + name + " : " + msg);
+						//it_out.println("[귓속말]" + msg);
+						it_out.println(URLEncoder.encode("[귓속말]" + name + " : " + msg, "UTF-8"));
 					}
 				}
 				else {
 					// 그 외엔 모든 클라이언트에게 전송
-					/*
-				클라이언트에게 메세지를 전달할때 매개변수로 name이 
-				있는경우와 없는경우를 구분해서 전달하게 된다. 
-					 */
+					//클라이언트에게 메세지를 전달할때 매개변수로 name이 있는 경우와 없는 경우를 구분해서 전달하게 됌. 
 					if(name.equals("")) {
 						//입장, 퇴장에서 사용되는 부분
-						it_out.println(msg);
+						it_out.println(URLEncoder.encode(msg, "UTF-8"));
 					}
 					else {
 						//메세지를 보낼때 사용되는 부분
-						it_out.println("["+ name +"] "+ msg);
+						it_out.println(URLEncoder.encode("["+ name + "] "+ msg, "UTF-8"));
+						//it_out.println(URLEncoder.encode(msg, "UTF-8"));
 					}
 				}
 			}
 			catch(Exception e) {
-				System.out.println("예외:"+e);
+				System.out.println("예외 : " + e);
 			}
 		}
 	}
 	/*
 	내부클래스
-		: init()에 기술되었던 스트림을 생성후 메세지를 읽기/쓰기 하던
-		부분이 해당 내부클래스로 이동되었다.
+		: init()에 기술되었던 스트림을 생성후 메세지를 읽기/쓰기 하던 부분이 해당 내부클래스로 이동되었다.
 	 */
 	class MultiServerT extends Thread {
 
@@ -139,10 +140,11 @@ public class MultiServer {
 			this.socket = socket;
 			try {
 				out = new PrintWriter(this.socket.getOutputStream(), true);
+				//in = new BufferedReader(new InputStreamReader(this.socket.getInputStream(), "UTF-8"));
 				in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
 			}
 			catch (Exception e) {
-				System.out.println("예외:"+ e);
+				System.out.println("예외: "+ e);
 			}
 		}
 
@@ -161,39 +163,56 @@ public class MultiServer {
 				 */
 				//클라이언트의 이름을 읽어온다.
 				name = in.readLine();
-				//방금 접속한 클라이언트를 제외한 나머지에게 입장을 알린다.
-				sendAllMsg("", name + "님이 입장하셨습니다.", "All");
-				//현재 접속한 클라이언트를 HashMap에 저장한다. 
-				clientMap.put(name, out);
-				
-				//접속자의 이름을 서버의 콘솔에 띄워주고						
-				System.out.println(name +" 접속");
-				//HashMap에 저장된 객체의 수로 현재 접속자를 파악할수 있다.
-				System.out.println("현재 접속자 수는 "+ clientMap.size()
-					+"명 입니다.");
-				
-				
-				//입력한 메세지는 모든 클라이언트에게 Echo된다. 
-				while (in!=null) {
-					s = in.readLine();
-					if ( s == null )
-						break;
-					//서버의 콘솔에 출력되고...
-					System.out.println(name + " >> " + s);
+				name = URLDecoder.decode(name, "UTF-8");
+				if(clientMap.containsKey(name) == true) {
+					Thread.interrupted();
+					//Thread.removeThread();
+				}
+				else {
+					//방금 접속한 클라이언트를 제외한 나머지에게 입장을 알린다.
+					sendAllMsg("", name + "님이 입장하셨습니다.", "All");
+					//현재 접속한 클라이언트를 HashMap에 저장한다. 
+					clientMap.put(name, out);
 					
-					//클라이언트 측으로 전송한다. 
-					if(s.charAt(0) == '/') {
-						String[] strArr = s.split(" ");
-						String msgContent = "";
-						for(int i=2; i<strArr.length; i++) {
-							msgContent += strArr[i] + " ";
+					//접속자의 이름을 서버의 콘솔에 띄워주고						
+					System.out.println(name +" 접속");
+					//HashMap에 저장된 객체의 수로 현재 접속자를 파악할수 있다.
+					System.out.println("현재 접속자 수는 "+ clientMap.size()
+						+"명 입니다.");
+					
+					
+					//입력한 메세지는 모든 클라이언트에게 Echo된다. 
+					while (in!=null) {
+						s = in.readLine();
+						s = URLDecoder.decode(s, "UTF-8");
+						//System.out.println(s);
+						if ( s == null )
+							break;
+						//서버의 콘솔에 출력되고...
+						System.out.println(name + " >> " + s);
+						
+						//클라이언트 측으로 전송한다. 
+						if(s.charAt(0) == '/') {
+							String[] strArr = s.split(" ");
+							String msgContent = "";
+							for(int i=2; i<strArr.length; i++) {
+								msgContent += strArr[i] + " ";
+							}
+							if(strArr[0].equals("/to")){
+								sendAllMsg(strArr[1], msgContent, "One");
+							} // 
+							else if(strArr[0].equals("/fixto")) {
+								while(!strArr[0].equals("/unfixto")) {
+									sendAllMsg(strArr[1], msgContent, "One");
+								//if(strArr[0].equals("/unfixto")) {
+								//	sendAllMsg(name, s, "All");
+								//	}
+								}
+							}
 						}
-						if(strArr[0].equals("/to")){
-							sendAllMsg(strArr[1], msgContent, "One");
+						else {
+							sendAllMsg(name, s, "All");
 						}
-					}
-					else {
-						sendAllMsg(name, s, "All");
 					}
 				}
 			}

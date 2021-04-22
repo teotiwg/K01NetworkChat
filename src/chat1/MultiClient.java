@@ -28,8 +28,7 @@ public class MultiClient {
 			Socket socket = new Socket(ServerIP, 9999);
 			
 			/*
-			서버에서 접속을 허가하기 위해 accept()메소드를 실행하면
-			클라이언트는 접속을 하게된다. 
+			서버에서 접속을 허가하기 위해 accept()메소드를 실행하면 클라이언트는 접속을 하게 됌. 
 			 */			
 			System.out.println("서버와 연결되었습니다...");
 			

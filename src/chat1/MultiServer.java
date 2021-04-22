@@ -18,8 +18,7 @@ public class MultiServer {
 
 		try {
 			/*
-			9999번으로 포트번호를 설정하여 서버객체를 생성하고
-			클라이언트의 접속을 기다린다. 
+			9999번으로 포트번호를 설정하여 서버객체를 생성하고 클라이언트의 접속을 기다린다. 
 			 */
 			serverSocket = new ServerSocket(9999);
 			System.out.println("서버가 시작되었습니다.");
@@ -27,8 +26,7 @@ public class MultiServer {
 			////...접속대기중...
 			
 			/*
-			클라이언트가 접속요청을 하면 accept()메소드를 통해
-			접속을 허가한다. 
+			클라이언트가 접속요청을 하면 accept()메소드를 통해 접속을 허가한다. 
 			 */
 			socket = serverSocket.accept();
 			
@@ -36,7 +34,7 @@ public class MultiServer {
 			 getInetAddress() / getPort()
 			 	: 원격지 즉 클라이언트의 IP주소와 포트번호를 얻어온다. 
 			 getLocalAddress() / getLocalPort()
-			 	: 연결이 시작된 네크워크 즉 서버측의 정보를 얻어온다. 
+			 	: 연결이 시작된 네트워크 즉 서버측의 정보를 얻어온다. 
 			 */
 			System.out.println(socket.getInetAddress()+"(클라이언트)의 "
 					+socket.getPort()+ "포트를 통해 " 
