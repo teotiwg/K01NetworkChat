@@ -38,7 +38,7 @@ public class MultiServer {
 	}
 	
 	public interface NumOfMem{
-		int MAX = 4;
+		int MAX = 2;
 	}
 	
 	//채팅 서버 초기화
@@ -51,18 +51,24 @@ public class MultiServer {
 			1명의 클라이언트가 접속할때마다 접속을 허용(Accept)해주고 동시에 MultiServerT 쓰레드를 생성. 
 			해당 쓰레드는 1명의 클라이언트가 전송하는 메세지를 읽어서 Echo해주는 역할을 담당. 
 			 */
-			while(true) {
+			if(clientMap.size() >= NumOfMem.MAX) { // -------------------인원제한
+				System.out.println("인원이 초과됐습니다. 접속을 차단합니다.");
+				Thread.currentThread().interrupt();
+			}
+			else {
+				while(true) {
 				//클라이언트의 접속 허가
-				socket = serverSocket.accept();
-				System.out.println(
-					socket.getInetAddress() + "(클라이언트)의 "
-					+socket.getPort() + " 포트를 통해 "
-					+socket.getLocalAddress() + "(서버)의"
-					+socket.getLocalPort() + " 포트로 연결됨");
-				//쓰레드로 정의된 내부클래스 객체생성 및 시작
-				//클라이언트 한명당 하나씩의 쓰레드가 생성된다. 
-				Thread mst = new MultiServerT(socket);
+					socket = serverSocket.accept();
+					System.out.println(
+						socket.getInetAddress() + "(클라이언트)의 "
+						+socket.getPort() + " 포트를 통해 "
+						+socket.getLocalAddress() + "(서버)의"
+						+socket.getLocalPort() + " 포트로 연결됨");
+					//쓰레드로 정의된 내부클래스 객체생성 및 시작
+					//클라이언트 한명당 하나씩의 쓰레드가 생성된다. 
+					Thread mst = new MultiServerT(socket);
 				mst.start();
+				}
 			}
 		}
 		catch (Exception e) {
@@ -86,42 +92,32 @@ public class MultiServer {
 		ms.init();
 	}
 	
-	public void blackList() {
-		black.add("혜수");
+	public boolean blackCheck(String word) {
 		black.add("낙현");
 		black.add("인하");
-		//black.add(name);
-	}
-	public boolean blackCheck(String word) {
-		System.out.println("블랙체크");
+		black.add("혜수");
 		
-		Iterator<String> itr = black.iterator();
-		while(itr.hasNext()) {
-			String check = itr.next();
-			if(check.equals(word))
+		for(String check : black) {			
+			if(word.equals(check))
 				return true;
 		}
-		return false;
+		return false;	
 	}
 	
-	public void banWords() {
+	public String banCheck(String word) {
 		pWords.add("대출");
 		pWords.add("스팸");
 		pWords.add("광고");
-		//pWords.add(word);
-	}
-	public boolean banCheck(String word) {
-		System.out.println("금지체크");
-		Iterator<String> itr = pWords.iterator();
 		
-		while(itr.hasNext()) {
-			String check = itr.next();
-			if(check.equals(word) || word.contains(check))
-				return true;
+		for(String check : pWords) {			
+			if(word.equals(check) || word.contains(check)) {
+				String bReplace = word.replace(check, "XX");
+				return bReplace;
+			}
 		}
-		return false;
+		return word;
 	}
-	
+
 	//접속된 모든 클라이언트 측으로 서버의 메세지를 Echo해주는 역할 담당
 	public void sendAllMsg(String name, String msg, String flag)
 	{
@@ -146,7 +142,7 @@ public class MultiServer {
 				}
 				else {
 					// 그 외엔 모든 클라이언트에게 전송
-					//클라이언트에게 메세지를 전달할때 매개변수로 name이 있는 경우와 없는 경우를 구분해서 전달하게 됌. 
+					// 클라이언트에게 메세지를 전달할 때 매개변수로 name이 있는 경우와 없는 경우를 구분해서 전달하게 됌. 
 					if(name.equals("")) {
 						//입장, 퇴장에서 사용되는 부분
 						it_out.println(URLEncoder.encode(msg, "UTF-8"));
@@ -196,23 +192,23 @@ public class MultiServer {
 			String name = "";
 			String s = "";
 			
-			if(clientMap.size() > NumOfMem.MAX) { // -------------------인원제한
-				Thread.currentThread().interrupt();
-				// 접속 차단!!!!!!!!!!!!!!!!!!!!!!!
-			}
+			//if(clientMap.size() >= NumOfMem.MAX) { // -------------------인원제한
+				//System.out.println("인원이 초과됐습니다. 접속을 차단합니다.");
+				//Thread.currentThread().interrupt();
+//				System.out.println("차단1");
+//				Thread.interrupted();
+//				System.out.println("차단2");
+			//}
 			try {
 				//클라이언트가 보내는 최초메세지는 대화명이므로 접속에 대한 부분을 출력하고, Echo함.
 				//클라이언트의 이름을 읽어온다.
 				name = in.readLine();
 				name = URLDecoder.decode(name, "UTF-8");
 				if(clientMap.containsKey(name) == true) { 
-					//System.out.println("대화명 중복!");
 					Thread.currentThread().interrupt();
 				}
-				else if(blackCheck(name) == true) { // --------------- 블랙리스트 체크/차단
+				else if(blackCheck(name) == true) {
 					// 신규 접속시 블랙리스트 Collection을 검사하여 접속을 차단한다.
-					// 접속 차단!!!!!!!!!!!!!!!!!!!!!!!
-					System.out.println("블랙리스트다!");
 					Thread.currentThread().interrupt();
 				}
 				else {
@@ -226,12 +222,15 @@ public class MultiServer {
 					System.out.println("현재 접속자 수는 "+ clientMap.size()
 						+"명 입니다.");
 					//입력한 메세지는 모든 클라이언트에게 Echo된다. 
-					while (in!=null) {
+					while (in != null) {// ------------------> 요것때문에 엔터누르면 먹통되는건가
 						s = in.readLine();
 						s = URLDecoder.decode(s, "UTF-8");
 						//System.out.println(s);
 						if ( s == null )
+							//continue;
 							break;
+						// 금칙어 체크
+						s = banCheck(s);
 						//서버의 콘솔에 출력되고...
 						System.out.println(name + " >> " + s);
 						//클라이언트 측으로 전송한다. 
@@ -239,16 +238,8 @@ public class MultiServer {
 							String[] strArr = s.split(" ");
 							String msgContent = "";
 							for(int i=2; i<strArr.length; i++) {
-								if(banCheck(strArr[i]) == true) { // -------------- 금칙어 체크
-									System.out.println("금칙어 체크");
-									strArr[i] = s.toString().replace(s.toString(), "XXX");
-								}
 								msgContent += strArr[i] + " ";
 							}
-							//if(banCheck(s) == true) { //----------------------------
-								//String noWord = forbidden.contains(s);
-								//break;
-								//}
 							if(strArr[0].equals("/to")){
 								sendAllMsg(strArr[1], msgContent, "One");
 							}  
@@ -267,15 +258,22 @@ public class MultiServer {
 										}
 									}
 							}
-							else if(strArr[0].equals("/block")) { //--------------------- 블록 차단
-								//String[] checkArr = s.split(" ");
-								String block = strArr[1];
-								if(block.equals(name)) {
+							else if(strArr[0].equals("/block") ) { //--------------------- 블록 차단
+								if(clientMap.containsKey(strArr[1])) {
 									
 								}
+								
+								break;
+								//String[] checkArr = s.split(" ");
+								//String block = strArr[1];
+								//if(block.equals(name)) {}
 							}
 							else if(strArr[0].equals("/list")) {
 								System.out.println("[접속자 명단]" + clientMap.keySet());
+								
+								String list = "[접속자 명단]" + clientMap.keySet();
+								System.out.println(list);
+								sendAllMsg("", list, "All");
 							}
 						}
 						else {
@@ -290,11 +288,12 @@ public class MultiServer {
 			finally {				
 				// 클라이언트가 접속을 종료하면 Socket예외가 발생하게 되어 finally절로 진입하게 됌. 
 				// 이때 "대화명"을 통해 정보를 삭제. 
-				//clientMap.remove(name);
 				sendAllMsg("", name + "님이 퇴장하셨습니다.", "All");
+				clientMap.remove(name);  // ===> 조건문으로? 보완 필요
+				//System.out.println(Thread.currentThread().getName());
 				clientMap.remove(Thread.currentThread().getName()); // 수정필요!!!!!!!!!!!!!!!!!!!!
-				//System.out.println(name + " [" + Thread.currentThread().getName() +  "] 퇴장");
-				System.out.println(name + " 퇴장");
+				System.out.println(name + " [" + Thread.currentThread().getName() +  "] 퇴장");
+				//System.out.println(name + " 퇴장");
 				System.out.println("현재 접속자 수는 " + clientMap.size() + "명입니다.");
 								
 				try {
