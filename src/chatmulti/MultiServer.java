@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.Collections;
@@ -23,6 +24,7 @@ public class MultiServer {
 	//클라이언트 정보저장을 위한 Map 컬렉션 생성	
 	Map<String, PrintWriter> clientMap;
 	Map<String, String> secretDM;
+	Map<String, String> chatter;
 	HashSet<String> black = new HashSet<String>();
 	HashSet<String> pWords = new HashSet<String>();
 
@@ -31,6 +33,7 @@ public class MultiServer {
 		//클라이언트의 이름과 출력스트림을 저장할 HashMap 컬렉션 생성
 		clientMap = new HashMap<String, PrintWriter>();
 		secretDM = new HashMap<String, String>();
+		chatter = new HashMap<String, String>();
 		//HashMap 동기화설정. 쓰레드가 사용자정보에 동시에 접근하는것을 차단
 		Collections.synchronizedMap(clientMap);
 		black = new HashSet<String>();
@@ -38,7 +41,7 @@ public class MultiServer {
 	}
 	
 	public interface NumOfMem{
-		int MAX = 2;
+		int MAX = 3;
 	}
 	
 	//채팅 서버 초기화
@@ -51,11 +54,6 @@ public class MultiServer {
 			1명의 클라이언트가 접속할때마다 접속을 허용(Accept)해주고 동시에 MultiServerT 쓰레드를 생성. 
 			해당 쓰레드는 1명의 클라이언트가 전송하는 메세지를 읽어서 Echo해주는 역할을 담당. 
 			 */
-			if(clientMap.size() >= NumOfMem.MAX) { // -------------------인원제한
-				System.out.println("인원이 초과됐습니다. 접속을 차단합니다.");
-				Thread.currentThread().interrupt();
-			}
-			else {
 				while(true) {
 				//클라이언트의 접속 허가
 					socket = serverSocket.accept();
@@ -69,7 +67,6 @@ public class MultiServer {
 					Thread mst = new MultiServerT(socket);
 				mst.start();
 				}
-			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -111,13 +108,28 @@ public class MultiServer {
 		
 		for(String check : pWords) {			
 			if(word.equals(check) || word.contains(check)) {
-				String bReplace = word.replace(check, "XX");
+				String bReplace = word.replace(word, "해당 문장은 금칙어를 포함하고 있습니다.");
 				return bReplace;
 			}
 		}
 		return word;
 	}
 
+	public String block(String name) {
+		Iterator<String> b = clientMap.keySet().iterator();
+		String bm = null;
+		while(b.hasNext()) {
+			String bWho = b.next();
+			
+			if(name.equals(bWho)) {// 여기서 블락한 사람의 메세지를 차단해야할 듯?
+				//String b_out = (String)clientMap.get(bWho);
+				//PrintWriter b_out = (PrintWriter)clientMap.get(bWho);
+
+				break;
+			}
+		}
+		return bm;
+	}
 	//접속된 모든 클라이언트 측으로 서버의 메세지를 Echo해주는 역할 담당
 	public void sendAllMsg(String name, String msg, String flag)
 	{
@@ -146,6 +158,11 @@ public class MultiServer {
 					if(name.equals("")) {
 						//입장, 퇴장에서 사용되는 부분
 						it_out.println(URLEncoder.encode(msg, "UTF-8"));
+					}
+					else if(flag.equals("None")) {
+						if(name.equals(clientName)) {
+							continue;
+						}
 					}
 					else {
 						//메세지를 보낼때 사용되는 부분
@@ -192,30 +209,39 @@ public class MultiServer {
 			String name = "";
 			String s = "";
 			
-			//if(clientMap.size() >= NumOfMem.MAX) { // -------------------인원제한
-				//System.out.println("인원이 초과됐습니다. 접속을 차단합니다.");
-				//Thread.currentThread().interrupt();
-//				System.out.println("차단1");
-//				Thread.interrupted();
-//				System.out.println("차단2");
-			//}
 			try {
 				//클라이언트가 보내는 최초메세지는 대화명이므로 접속에 대한 부분을 출력하고, Echo함.
 				//클라이언트의 이름을 읽어온다.
 				name = in.readLine();
 				name = URLDecoder.decode(name, "UTF-8");
 				if(clientMap.containsKey(name) == true) { 
+					clientMap.remove(Thread.currentThread().getName());
+					//clientMap.remove(name);
 					Thread.currentThread().interrupt();
+					
+					//socket.close();
 				}
 				else if(blackCheck(name) == true) {
 					// 신규 접속시 블랙리스트 Collection을 검사하여 접속을 차단한다.
+					System.out.println("블랙리스트의 접속을 차단합니다.");
+					clientMap.remove(name);
 					Thread.currentThread().interrupt();
+					//socket.close();
 				}
 				else {
-					//방금 접속한 클라이언트를 제외한 나머지에게 입장을 알린다.
-					sendAllMsg("", name + "님이 입장하셨습니다.", "All");
 					//현재 접속한 클라이언트를 HashMap에 저장한다. 
 					clientMap.put(name, out);
+					//secretDM = clientMap;
+					
+					if(clientMap.size() > NumOfMem.MAX) { // -------------------인원제한
+						System.out.println("인원이 초과됐습니다. 접속을 차단합니다.");
+						clientMap.remove(Thread.currentThread().getName());
+						clientMap.remove(name);
+						//Thread.currentThread().interrupt();
+						socket.close();
+					}
+					//방금 접속한 클라이언트를 제외한 나머지에게 입장을 알린다.
+					sendAllMsg("", name + "님이 입장하셨습니다.", "All");
 					//접속자의 이름을 서버의 콘솔에 띄워주고						
 					System.out.println(name +" 접속");
 					//HashMap에 저장된 객체의 수로 현재 접속자를 파악할 수 있다.
@@ -260,20 +286,25 @@ public class MultiServer {
 							}
 							else if(strArr[0].equals("/block") ) { //--------------------- 블록 차단
 								if(clientMap.containsKey(strArr[1])) {
-									
+									chatter.put(name, strArr[1]);
+									while(strArr[0] != "/unblock") {
+											
+										if(strArr[0] == "/unblock")
+											break;
+										else {
+											//PrintWriter it_out = (PrintWriter) clientMap.get(strArr[1]);
+											//sendAllMsg(strArr[1], "", "None"); // 첫 인자가 받는사람임;
+											block(strArr[1]);
+										}
+									}
+									//break;
 								}
-								
-								break;
-								//String[] checkArr = s.split(" ");
-								//String block = strArr[1];
-								//if(block.equals(name)) {}
 							}
 							else if(strArr[0].equals("/list")) {
 								System.out.println("[접속자 명단]" + clientMap.keySet());
 								
 								String list = "[접속자 명단]" + clientMap.keySet();
-								System.out.println(list);
-								sendAllMsg("", list, "All");
+								sendAllMsg("", list, "All");								
 							}
 						}
 						else {
@@ -283,17 +314,20 @@ public class MultiServer {
 				}
 			}
 			catch (Exception e) {
-				System.out.println("예외:"+ e);
+				System.out.println("예외: "+ e);
 			}
+			//catch(SocketException e) {}
 			finally {				
 				// 클라이언트가 접속을 종료하면 Socket예외가 발생하게 되어 finally절로 진입하게 됌. 
 				// 이때 "대화명"을 통해 정보를 삭제. 
-				sendAllMsg("", name + "님이 퇴장하셨습니다.", "All");
-				clientMap.remove(name);  // ===> 조건문으로? 보완 필요
-				//System.out.println(Thread.currentThread().getName());
 				clientMap.remove(Thread.currentThread().getName()); // 수정필요!!!!!!!!!!!!!!!!!!!!
+				clientMap.remove(name);  // ===> 조건문으로? 보완 필요
+				
+				//if(Thread.currentThread().getName() == name)
+				//	clientMap.remove(name);
+				
+				sendAllMsg("", name + "님이 퇴장하셨습니다.", "All");
 				System.out.println(name + " [" + Thread.currentThread().getName() +  "] 퇴장");
-				//System.out.println(name + " 퇴장");
 				System.out.println("현재 접속자 수는 " + clientMap.size() + "명입니다.");
 								
 				try {
